@@ -5,15 +5,15 @@ int totalDonuts = 0;
 void setup(){
   size(displayWidth,displayHeight, P3D);
   donuts = new Donut[maxDonuts];
-  donuts[0] = new Donut();
+  createDonuts();
 }
 
 void draw(){
   background(50, 64, 42);
   setupLighting();
   setupCamera();
-  int count = 0;
-  while(count < totalDonuts){
+  int count = 0;  
+  while(count < totalDonuts){   
     donuts[count].draw();
     count++;
   }
@@ -28,7 +28,6 @@ void setupCamera(){
 }
 
 void setupLighting(){
-  //lights();
   ambientLight(128, 128, 128);
   directionalLight(128, 128, 128, 0, 0, -1);
   lightFalloff(1, 0, 0);

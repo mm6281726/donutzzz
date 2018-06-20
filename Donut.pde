@@ -13,18 +13,8 @@ class Donut {
 
   final color gold = color(212, 174, 55);
   
-  void draw(){
-    specular(51, 51, 51);       
-    noStroke();    
-    fill(gold);
+  Donut(){
     
-    //center and spin toroid
-    translate(width/2, height/2, -100);
-  
-    rotateX(frameCount*PI/150);
-    rotateY(frameCount*PI/170);
-    rotateZ(frameCount*PI/90);
-  
     // initialize point arrays
     vertices = new PVector[pts+1];
     vertices2 = new PVector[pts+1];
@@ -37,6 +27,19 @@ class Donut {
       vertices[i].z = cos(radians(angle))*radius;      
       angle+=360.0/pts;
     }
+  }
+  
+  void draw(){
+    specular(51, 51, 51);       
+    noStroke();    
+    fill(gold);
+    
+    //center and spin toroid
+    translate(width/2, height/2, -100);
+  
+    rotateX(frameCount*PI/150);
+    rotateY(frameCount*PI/170);
+    rotateZ(frameCount*PI/90);    
   
     // draw toroid
     latheAngle = 0;
