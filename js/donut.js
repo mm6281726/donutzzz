@@ -9,7 +9,7 @@ class Donut {
     this.radius = 60;
     this.latheRadius = 100;
     this.icingLift = 4;
-    this.icingHalfBase = 0.34;
+    this.icingHalfBase = 0.48;
     this.icingEdgeWobble = 0.55;
     this.icingNoiseScale = 1.6;
     this.icingSeedLeft = random(1000);
@@ -68,19 +68,40 @@ class Donut {
       Math.sin(sweep) * major,
       Math.cos(tubeAngle) * r
     );
+
+    // Outward surface normal — sprinkles should NOT align with this (that stands them up).
+    const normal = createVector(
+      Math.cos(sweep) * Math.sin(tubeAngle),
+      Math.sin(sweep) * Math.sin(tubeAngle),
+      Math.cos(tubeAngle)
+    );
+    if (normal.magSq() > 0) normal.normalize();
+
+    // Tangents in the icing surface plane.
+    const toroidal = createVector(-Math.sin(sweep), Math.cos(sweep), 0);
+    const poloidal = createVector(
+      Math.cos(sweep) * Math.cos(tubeAngle),
+      Math.sin(sweep) * Math.cos(tubeAngle),
+      -Math.sin(tubeAngle)
+    );
+    if (poloidal.magSq() > 0) poloidal.normalize();
+
+    // Random direction lying flat on the icing.
+    const a = random(TWO_PI);
     const along = createVector(
-      Math.sin(tubeAngle) * Math.cos(sweep),
-      Math.sin(tubeAngle) * Math.sin(sweep),
-      -Math.cos(tubeAngle)
+      toroidal.x * Math.cos(a) + poloidal.x * Math.sin(a),
+      toroidal.y * Math.cos(a) + poloidal.y * Math.sin(a),
+      toroidal.z * Math.cos(a) + poloidal.z * Math.sin(a)
     );
     if (along.magSq() > 0) along.normalize();
+
     return {
       pos,
       along,
+      normal,
       fill: random(this.sprinklePalette),
       len: random(18, 30),
       thick: random(4.8, 7.2),
-      twirl: random(TWO_PI),
     };
   }
 
@@ -180,13 +201,24 @@ class Donut {
     for (const s of this.sprinkles) {
       push();
       translate(s.pos.x, s.pos.y, s.pos.z);
-      const axis = s.along;
-      const yaw = Math.atan2(axis.y, axis.x);
-      const zClamped = constrain(axis.z, -1, 1);
-      const pitch = -Math.asin(zClamped);
-      rotateZ(yaw);
-      rotateY(pitch);
-      rotateX(s.twirl);
+      // Map box local +X → along (length), local +Y → normal (thin axis out of icing).
+      const x = s.along;
+      let z = p5.Vector.cross(x, s.normal);
+      if (z.magSq() < 1e-8) {
+        z = p5.Vector.cross(x, createVector(0, 0, 1));
+      }
+      if (z.magSq() < 1e-8) {
+        z = p5.Vector.cross(x, createVector(0, 1, 0));
+      }
+      z.normalize();
+      const y = p5.Vector.cross(z, x);
+      y.normalize();
+      applyMatrix(
+        x.x, x.y, x.z, 0,
+        y.x, y.y, y.z, 0,
+        z.x, z.y, z.z, 0,
+        0, 0, 0, 1
+      );
       fill(s.fill);
       box(s.len, s.thick, s.thick);
       pop();

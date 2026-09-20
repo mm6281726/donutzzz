@@ -17,8 +17,8 @@ class Donut {
     color(255, 140, 60)
   };
 
-  // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
-  final float icingHalfBase = 0.34;
+  // Icing cap; edges wobble with smooth noise for uneven rounded drips.
+  final float icingHalfBase = 0.48;
   final float icingEdgeWobble = 0.55;
   final float icingNoiseScale = 1.6;
   final float icingLift = 4.0;
@@ -68,13 +68,30 @@ class Donut {
       sin(sweep) * major,
       cos(tubeAngle) * r
     );
-    PVector along = new PVector(
-      sin(tubeAngle) * cos(sweep),
-      sin(tubeAngle) * sin(sweep),
-      -cos(tubeAngle)
+
+    // Outward surface normal — do not align sprinkle length with this.
+    PVector normal = new PVector(
+      cos(sweep) * sin(tubeAngle),
+      sin(sweep) * sin(tubeAngle),
+      cos(tubeAngle)
     ).normalize();
+
+    PVector toroidal = new PVector(-sin(sweep), cos(sweep), 0);
+    PVector poloidal = new PVector(
+      cos(sweep) * cos(tubeAngle),
+      sin(sweep) * cos(tubeAngle),
+      -sin(tubeAngle)
+    ).normalize();
+
+    float a = random(TWO_PI);
+    PVector along = new PVector(
+      toroidal.x * cos(a) + poloidal.x * sin(a),
+      toroidal.y * cos(a) + poloidal.y * sin(a),
+      toroidal.z * cos(a) + poloidal.z * sin(a)
+    ).normalize();
+
     color c = sprinklePalette[int(random(sprinklePalette.length))];
-    return new Sprinkle(pos, along, c, random(18, 30), random(4.8, 7.2));
+    return new Sprinkle(pos, along, normal, c, random(18, 30), random(4.8, 7.2));
   }
 
   void draw() {
@@ -179,12 +196,24 @@ class Donut {
       Sprinkle s = sprinkles[i];
       pushMatrix();
       translate(s.pos.x, s.pos.y, s.pos.z);
-      PVector axis = s.along;
-      float yaw = atan2(axis.y, axis.x);
-      float pitch = -asin(constrain(axis.z, -1, 1));
-      rotateZ(yaw);
-      rotateY(pitch);
-      rotateX(s.twirl);
+      // Map box local +X → along (length), local +Y → normal (out of icing).
+      PVector x = s.along;
+      PVector z = x.cross(s.normal, null);
+      if (z.magSq() < 1e-8) {
+        z = x.cross(new PVector(0, 0, 1), null);
+      }
+      if (z.magSq() < 1e-8) {
+        z = x.cross(new PVector(0, 1, 0), null);
+      }
+      z.normalize();
+      PVector y = z.cross(x, null);
+      y.normalize();
+      applyMatrix(
+        x.x, y.x, z.x, 0,
+        x.y, y.y, z.y, 0,
+        x.z, y.z, z.z, 0,
+        0, 0, 0, 1
+      );
       fill(s.fill);
       specular(40, 40, 40);
       box(s.len, s.thick, s.thick);
@@ -196,17 +225,17 @@ class Donut {
 class Sprinkle {
   PVector pos;
   PVector along;
+  PVector normal;
   color fill;
   float len;
   float thick;
-  float twirl;
 
-  Sprinkle(PVector pos, PVector along, color fill, float len, float thick) {
+  Sprinkle(PVector pos, PVector along, PVector normal, color fill, float len, float thick) {
     this.pos = pos;
     this.along = along;
+    this.normal = normal;
     this.fill = fill;
     this.len = len;
     this.thick = thick;
-    this.twirl = random(TWO_PI);
   }
 }
