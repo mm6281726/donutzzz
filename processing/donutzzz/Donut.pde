@@ -7,7 +7,7 @@ class Donut {
   float latheRadius = 100.0;
 
   final color dough = color(212, 174, 55);
-  final color icing = color(148, 87, 235);
+  final color icing = color(110, 45, 210);
   final color[] sprinklePalette = {
     color(255, 90, 120),
     color(255, 220, 70),

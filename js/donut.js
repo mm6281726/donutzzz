@@ -8,7 +8,7 @@ class Donut {
     this.icingStart = -HALF_PI;
     this.icingEnd = HALF_PI;
     this.dough = color(212, 174, 55);
-    this.icing = color(148, 87, 235);
+    this.icing = color(110, 45, 210);
     this.sprinklePalette = [
       color(255, 90, 120),
       color(255, 220, 70),
@@ -63,7 +63,7 @@ class Donut {
   }
 
   drawBody() {
-    specular(51, 51, 51);
+    specularMaterial(51, 51, 51);
     noStroke();
     fill(this.dough);
 
@@ -102,7 +102,7 @@ class Donut {
   }
 
   drawIcing() {
-    specular(180, 160, 220);
+    specularMaterial(180, 160, 220);
     noStroke();
     fill(this.icing);
 
@@ -155,7 +155,7 @@ class Donut {
       rotateY(pitch);
       rotateX(s.twirl);
       fill(s.fill);
-      specular(40, 40, 40);
+      specularMaterial(40, 40, 40);
       box(s.len, s.thick, s.thick);
       pop();
     }
