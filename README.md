@@ -38,6 +38,9 @@ python3 -m http.server 8080
 
 Open http://localhost:8080
 
+Works in current **Chrome**, Firefox, Safari, and Edge (WebGL required). The page loads p5.js from multiple CDNs and uses WebGL settings that also work when Chrome falls back to software rendering.
+
+If you ever see a blank page in Chrome, enable **Settings → System → Use hardware acceleration when available**, then relaunch Chrome.
 ## GitHub Pages
 
 Pages is served from the **root of `master`** (the `index.html` in this repo).
