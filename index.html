@@ -2,15 +2,77 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>donutzzz</title>
     <meta name="description" content="A spinning glazed donut — fallin from the sky." />
     <link rel="stylesheet" href="css/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
   </head>
   <body>
     <main id="canvas-host" aria-label="donutzzz animation"></main>
-    <script src="js/donut.js?v=2"></script>
-    <script src="js/sketch.js?v=2"></script>
+    <div id="webgl-error" hidden role="alert">
+      <p>
+        This page needs WebGL (Chrome, Firefox, Safari, and Edge all support it).
+        In Chrome: Settings → System → use hardware acceleration when available,
+        then relaunch. Or try another up-to-date browser.
+      </p>
+    </div>
+    <noscript>
+      <p class="noscript">donutzzz needs JavaScript enabled.</p>
+    </noscript>
+    <script>
+      // Load p5 with CDN fallbacks so Chrome still works if one host is blocked.
+      (function () {
+        var urls = [
+          "https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js",
+          "https://unpkg.com/p5@1.11.3/lib/p5.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js",
+        ];
+        var sketchUrls = ["js/donut.js?v=3", "js/sketch.js?v=3"];
+
+        function loadScript(src) {
+          return new Promise(function (resolve, reject) {
+            var s = document.createElement("script");
+            s.src = src;
+            s.async = false;
+            s.onload = function () {
+              resolve(src);
+            };
+            s.onerror = function () {
+              reject(new Error("Failed to load " + src));
+            };
+            document.head.appendChild(s);
+          });
+        }
+
+        function loadFirst(list) {
+          return list.reduce(function (chain, url) {
+            return chain.catch(function () {
+              return loadScript(url);
+            });
+          }, Promise.reject());
+        }
+
+        loadFirst(urls)
+          .catch(function () {
+            return Promise.reject(new Error("p5 CDN unavailable"));
+          })
+          .then(function () {
+            return sketchUrls.reduce(function (chain, url) {
+              return chain.then(function () {
+                return loadScript(url);
+              });
+            }, Promise.resolve());
+          })
+          .catch(function (err) {
+            console.error(err);
+            var el = document.getElementById("webgl-error");
+            if (el) {
+              el.hidden = false;
+              el.querySelector("p").textContent =
+                "Could not load the donut sketch. Check your network connection and try Chrome again.";
+            }
+          });
+      })();
+    </script>
   </body>
 </html>

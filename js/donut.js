@@ -1,3 +1,7 @@
+/**
+ * Browser-hardened WebGL donut for Chrome / Firefox / Safari / Edge.
+ * Uses TRIANGLE_STRIP + buildGeometry so meshes work reliably across WebGL1.
+ */
 class Donut {
   constructor() {
     this.pts = 40;
@@ -5,7 +9,6 @@ class Donut {
     this.radius = 60;
     this.latheRadius = 100;
     this.icingLift = 4;
-    // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
     this.icingHalfBase = 0.34;
     this.icingEdgeWobble = 0.55;
     this.icingNoiseScale = 1.6;
@@ -25,13 +28,16 @@ class Donut {
     for (let i = 0; i < 70; i++) {
       this.sprinkles.push(this.makeSprinkle());
     }
+
+    // Bake static meshes once — avoids per-frame beginShape cost and Chrome jank.
+    this.bodyGeo = buildGeometry(() => this.drawBodyMesh());
+    this.icingGeo = buildGeometry(() => this.drawIcingMesh());
+    this.sprinkleGeo = buildGeometry(() => this.drawSprinkleMeshes());
   }
 
-  // Local icing tube-angle range at a given lathe angle (radians).
   icingBounds(latheAngle) {
     const u = Math.cos(latheAngle) * this.icingNoiseScale;
     const v = Math.sin(latheAngle) * this.icingNoiseScale;
-    // Soft lobes keep drips rounded rather than jagged.
     const dripL =
       0.45 * noise(u + this.icingSeedLeft, v) +
       0.4 * noise(u * 2.4 + this.icingSeedLeft, v * 2.4) +
@@ -42,18 +48,19 @@ class Donut {
       0.4 * noise(u * 2.4 + this.icingSeedRight, v * 2.4 + 40) +
       0.35 * Math.max(0, Math.sin(latheAngle * 4.0 - this.icingSeedRight)) +
       0.25 * Math.max(0, Math.sin(latheAngle * 2.7 + 0.4));
-    const start =
-      -this.icingHalfBase - this.icingEdgeWobble * constrain(dripL, 0, 1.4);
-    const end =
-      this.icingHalfBase + this.icingEdgeWobble * constrain(dripR, 0, 1.4);
-    return { start, end };
+    return {
+      start: -this.icingHalfBase - this.icingEdgeWobble * constrain(dripL, 0, 1.4),
+      end: this.icingHalfBase + this.icingEdgeWobble * constrain(dripR, 0, 1.4),
+    };
   }
 
   makeSprinkle() {
     const sweep = random(TWO_PI);
     const bounds = this.icingBounds(sweep);
     const margin = 0.12;
-    const tubeAngle = random(bounds.start + margin, bounds.end - margin);
+    const lo = bounds.start + margin;
+    const hi = bounds.end - margin;
+    const tubeAngle = lo < hi ? random(lo, hi) : (bounds.start + bounds.end) * 0.5;
     const r = this.radius + this.icingLift + 2.0;
     const major = this.latheRadius + Math.sin(tubeAngle) * r;
     const pos = createVector(
@@ -65,7 +72,8 @@ class Donut {
       Math.sin(tubeAngle) * Math.cos(sweep),
       Math.sin(tubeAngle) * Math.sin(sweep),
       -Math.cos(tubeAngle)
-    ).normalize();
+    );
+    if (along.magSq() > 0) along.normalize();
     return {
       pos,
       along,
@@ -83,107 +91,103 @@ class Donut {
     rotateY((frameCount * PI) / 170);
     rotateZ((frameCount * PI) / 90);
 
-    this.drawBody();
-    this.drawIcing();
-    this.drawSprinkles();
+    noStroke();
+
+    ambientMaterial(this.dough);
+    specularMaterial(60, 60, 60);
+    shininess(18);
+    fill(this.dough);
+    model(this.bodyGeo);
+
+    ambientMaterial(this.icing);
+    specularMaterial(200, 180, 240);
+    shininess(40);
+    fill(this.icing);
+    model(this.icingGeo);
+
+    // Sprinkles are already colored inside the baked geometry.
+    shininess(12);
+    model(this.sprinkleGeo);
+
     pop();
   }
 
-  drawBody() {
-    specularMaterial(51, 51, 51);
+  // WebGL-native strip topology (Chrome / all browsers).
+  emitStripRing(getPoint, count) {
+    const prev = new Array(count + 1);
+    const curr = new Array(count + 1);
+    for (let j = 0; j <= count; j++) {
+      prev[j] = createVector();
+      curr[j] = createVector();
+    }
+
+    let latheAngle = 0;
+    for (let i = 0; i <= this.segments; i++) {
+      for (let j = 0; j <= count; j++) {
+        const p = getPoint(latheAngle, j / count);
+        curr[j].set(p.x, p.y, p.z);
+      }
+      if (i > 0) {
+        beginShape(TRIANGLE_STRIP);
+        for (let j = 0; j <= count; j++) {
+          vertex(prev[j].x, prev[j].y, prev[j].z);
+          vertex(curr[j].x, curr[j].y, curr[j].z);
+        }
+        endShape();
+      }
+      for (let j = 0; j <= count; j++) {
+        prev[j].set(curr[j]);
+      }
+      latheAngle += TWO_PI / this.segments;
+    }
+  }
+
+  drawBodyMesh() {
     noStroke();
     fill(this.dough);
-
-    let latheAngle = 0;
-    const prev = [];
-    const curr = [];
-    for (let j = 0; j <= this.pts; j++) {
-      prev[j] = createVector();
-      curr[j] = createVector();
-    }
-
-    for (let i = 0; i <= this.segments; i++) {
-      for (let j = 0; j <= this.pts; j++) {
-        const tubeAngle = (j / this.pts) * TWO_PI;
-        const px = this.latheRadius + Math.sin(tubeAngle) * this.radius;
-        const pz = Math.cos(tubeAngle) * this.radius;
-        curr[j].set(
-          Math.cos(latheAngle) * px,
-          Math.sin(latheAngle) * px,
-          pz
-        );
-      }
-      if (i > 0) {
-        beginShape(QUAD_STRIP);
-        for (let j = 0; j <= this.pts; j++) {
-          vertex(prev[j].x, prev[j].y, prev[j].z);
-          vertex(curr[j].x, curr[j].y, curr[j].z);
-        }
-        endShape();
-      }
-      for (let j = 0; j <= this.pts; j++) {
-        prev[j].set(curr[j]);
-      }
-      latheAngle += TWO_PI / this.segments;
-    }
+    this.emitStripRing((latheAngle, t) => {
+      const tubeAngle = t * TWO_PI;
+      const px = this.latheRadius + Math.sin(tubeAngle) * this.radius;
+      const pz = Math.cos(tubeAngle) * this.radius;
+      return createVector(
+        Math.cos(latheAngle) * px,
+        Math.sin(latheAngle) * px,
+        pz
+      );
+    }, this.pts);
   }
 
-  drawIcing() {
-    specularMaterial(180, 160, 220);
+  drawIcingMesh() {
     noStroke();
     fill(this.icing);
-
     const icingPts = Math.floor(this.pts / 2);
-    let latheAngle = 0;
-    const prev = [];
-    const curr = [];
-    for (let j = 0; j <= icingPts; j++) {
-      prev[j] = createVector();
-      curr[j] = createVector();
-    }
-
-    for (let i = 0; i <= this.segments; i++) {
+    this.emitStripRing((latheAngle, t) => {
       const bounds = this.icingBounds(latheAngle);
-      for (let j = 0; j <= icingPts; j++) {
-        const t = j / icingPts;
-        const tubeAngle = lerp(bounds.start, bounds.end, t);
-        const r = this.radius + this.icingLift;
-        const px = this.latheRadius + Math.sin(tubeAngle) * r;
-        const pz = Math.cos(tubeAngle) * r;
-        curr[j].set(
-          Math.cos(latheAngle) * px,
-          Math.sin(latheAngle) * px,
-          pz
-        );
-      }
-      if (i > 0) {
-        beginShape(QUAD_STRIP);
-        for (let j = 0; j <= icingPts; j++) {
-          vertex(prev[j].x, prev[j].y, prev[j].z);
-          vertex(curr[j].x, curr[j].y, curr[j].z);
-        }
-        endShape();
-      }
-      for (let j = 0; j <= icingPts; j++) {
-        prev[j].set(curr[j]);
-      }
-      latheAngle += TWO_PI / this.segments;
-    }
+      const tubeAngle = lerp(bounds.start, bounds.end, t);
+      const r = this.radius + this.icingLift;
+      const px = this.latheRadius + Math.sin(tubeAngle) * r;
+      const pz = Math.cos(tubeAngle) * r;
+      return createVector(
+        Math.cos(latheAngle) * px,
+        Math.sin(latheAngle) * px,
+        pz
+      );
+    }, icingPts);
   }
 
-  drawSprinkles() {
+  drawSprinkleMeshes() {
     noStroke();
     for (const s of this.sprinkles) {
       push();
       translate(s.pos.x, s.pos.y, s.pos.z);
       const axis = s.along;
       const yaw = Math.atan2(axis.y, axis.x);
-      const pitch = -Math.asin(constrain(axis.z, -1, 1));
+      const zClamped = constrain(axis.z, -1, 1);
+      const pitch = -Math.asin(zClamped);
       rotateZ(yaw);
       rotateY(pitch);
       rotateX(s.twirl);
       fill(s.fill);
-      specularMaterial(40, 40, 40);
       box(s.len, s.thick, s.thick);
       pop();
     }
