@@ -2,43 +2,17 @@ let donuts = [];
 const maxDonuts = 1;
 let webglOk = false;
 
-function showWebglError() {
+function showWebglError(detail) {
+  if (detail) console.error(detail);
   const el = document.getElementById("webgl-error");
   if (el) el.hidden = false;
   const host = document.getElementById("canvas-host");
   if (host) host.style.display = "none";
 }
 
-function webglIsAvailable() {
-  try {
-    const canvas = document.createElement("canvas");
-    // failIfMajorPerformanceCaveat:false lets Chrome software GL (SwiftShader) work
-    // in VMs / remote desktops instead of failing the context.
-    const attrs = {
-      alpha: true,
-      depth: true,
-      antialias: true,
-      failIfMajorPerformanceCaveat: false,
-      powerPreference: "high-performance",
-    };
-    return !!(
-      canvas.getContext("webgl", attrs) ||
-      canvas.getContext("experimental-webgl", attrs) ||
-      canvas.getContext("webgl2", attrs)
-    );
-  } catch (e) {
-    return false;
-  }
-}
-
 function setup() {
-  if (!webglIsAvailable()) {
-    showWebglError();
-    noLoop();
-    return;
-  }
-
-  // Must be called before createCanvas(WEBGL). Helps Chrome across GPU / SwiftShader.
+  // Set BEFORE createCanvas(WEBGL). failIfMajorPerformanceCaveat:false is
+  // important for Chrome on VMs / remote desktops that use SwiftShader.
   setAttributes("alpha", true);
   setAttributes("depth", true);
   setAttributes("antialias", true);
@@ -47,26 +21,27 @@ function setup() {
   setAttributes("perPixelLighting", true);
   setAttributes("failIfMajorPerformanceCaveat", false);
 
-  // Cap density so high-DPI Chrome laptops stay smooth.
+  // Cap density so high-DPI Chrome stays smooth.
   const density = typeof displayDensity === "function" ? displayDensity() : 1;
-  pixelDensity(Math.min(density, 2));
+  pixelDensity(Math.min(Math.max(density, 1), 2));
 
   let canvas;
   try {
     canvas = createCanvas(windowWidth, windowHeight, WEBGL);
   } catch (err) {
-    console.error("createCanvas(WEBGL) failed", err);
-    showWebglError();
+    showWebglError(err);
     noLoop();
     return;
   }
 
   canvas.parent("canvas-host");
 
-  // Confirm the GL context actually exists (Chrome can throw later otherwise).
-  const renderer = canvas._renderer;
-  if (!renderer || !(renderer.GL || renderer.drawingContext)) {
-    showWebglError();
+  const gl =
+    (canvas._renderer && (canvas._renderer.GL || canvas._renderer.drawingContext)) ||
+    (canvas.elt && canvas.elt.getContext("webgl"));
+
+  if (!gl) {
+    showWebglError("No WebGL context after createCanvas");
     noLoop();
     return;
   }
@@ -110,8 +85,7 @@ function createDonuts() {
       donuts.push(new Donut());
     }
   } catch (err) {
-    console.error("Donut setup failed", err);
-    showWebglError();
+    showWebglError(err);
     webglOk = false;
     noLoop();
   }
