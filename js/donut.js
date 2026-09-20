@@ -6,9 +6,9 @@ class Donut {
     this.latheRadius = 100;
     this.icingLift = 4;
     // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
-    this.icingHalfBase = 0.52;
-    this.icingEdgeWobble = 0.38;
-    this.icingNoiseScale = 1.35;
+    this.icingHalfBase = 0.34;
+    this.icingEdgeWobble = 0.55;
+    this.icingNoiseScale = 1.6;
     this.icingSeedLeft = random(1000);
     this.icingSeedRight = random(1000);
     this.dough = color(212, 174, 55);
@@ -33,17 +33,19 @@ class Donut {
     const v = Math.sin(latheAngle) * this.icingNoiseScale;
     // Soft lobes keep drips rounded rather than jagged.
     const dripL =
-      0.55 * noise(u + this.icingSeedLeft, v) +
-      0.35 * noise(u * 2.1 + this.icingSeedLeft, v * 2.1) +
-      0.18 * Math.sin(latheAngle * 3.0 + this.icingSeedLeft);
+      0.45 * noise(u + this.icingSeedLeft, v) +
+      0.4 * noise(u * 2.4 + this.icingSeedLeft, v * 2.4) +
+      0.35 * Math.max(0, Math.sin(latheAngle * 5.0 + this.icingSeedLeft)) +
+      0.25 * Math.max(0, Math.sin(latheAngle * 2.3 + 1.7));
     const dripR =
-      0.55 * noise(u + this.icingSeedRight, v + 40) +
-      0.35 * noise(u * 2.1 + this.icingSeedRight, v * 2.1 + 40) +
-      0.18 * Math.sin(latheAngle * 2.0 - this.icingSeedRight);
+      0.45 * noise(u + this.icingSeedRight, v + 40) +
+      0.4 * noise(u * 2.4 + this.icingSeedRight, v * 2.4 + 40) +
+      0.35 * Math.max(0, Math.sin(latheAngle * 4.0 - this.icingSeedRight)) +
+      0.25 * Math.max(0, Math.sin(latheAngle * 2.7 + 0.4));
     const start =
-      -this.icingHalfBase - this.icingEdgeWobble * constrain(dripL, 0, 1.2);
+      -this.icingHalfBase - this.icingEdgeWobble * constrain(dripL, 0, 1.4);
     const end =
-      this.icingHalfBase + this.icingEdgeWobble * constrain(dripR, 0, 1.2);
+      this.icingHalfBase + this.icingEdgeWobble * constrain(dripR, 0, 1.4);
     return { start, end };
   }
 
@@ -68,8 +70,8 @@ class Donut {
       pos,
       along,
       fill: random(this.sprinklePalette),
-      len: random(14, 24),
-      thick: random(3.4, 5.2),
+      len: random(18, 30),
+      thick: random(4.8, 7.2),
       twirl: random(TWO_PI),
     };
   }

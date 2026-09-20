@@ -18,9 +18,9 @@ class Donut {
   };
 
   // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
-  final float icingHalfBase = 0.52;
-  final float icingEdgeWobble = 0.38;
-  final float icingNoiseScale = 1.35;
+  final float icingHalfBase = 0.34;
+  final float icingEdgeWobble = 0.55;
+  final float icingNoiseScale = 1.6;
   final float icingLift = 4.0;
   float icingSeedLeft;
   float icingSeedRight;
@@ -42,15 +42,17 @@ class Donut {
     float u = cos(latheAngle) * icingNoiseScale;
     float v = sin(latheAngle) * icingNoiseScale;
     float dripL =
-      0.55 * noise(u + icingSeedLeft, v) +
-      0.35 * noise(u * 2.1 + icingSeedLeft, v * 2.1) +
-      0.18 * sin(latheAngle * 3.0 + icingSeedLeft);
+      0.45 * noise(u + icingSeedLeft, v) +
+      0.4 * noise(u * 2.4 + icingSeedLeft, v * 2.4) +
+      0.35 * max(0, sin(latheAngle * 5.0 + icingSeedLeft)) +
+      0.25 * max(0, sin(latheAngle * 2.3 + 1.7));
     float dripR =
-      0.55 * noise(u + icingSeedRight, v + 40) +
-      0.35 * noise(u * 2.1 + icingSeedRight, v * 2.1 + 40) +
-      0.18 * sin(latheAngle * 2.0 - icingSeedRight);
-    float start = -icingHalfBase - icingEdgeWobble * constrain(dripL, 0, 1.2);
-    float end = icingHalfBase + icingEdgeWobble * constrain(dripR, 0, 1.2);
+      0.45 * noise(u + icingSeedRight, v + 40) +
+      0.4 * noise(u * 2.4 + icingSeedRight, v * 2.4 + 40) +
+      0.35 * max(0, sin(latheAngle * 4.0 - icingSeedRight)) +
+      0.25 * max(0, sin(latheAngle * 2.7 + 0.4));
+    float start = -icingHalfBase - icingEdgeWobble * constrain(dripL, 0, 1.4);
+    float end = icingHalfBase + icingEdgeWobble * constrain(dripR, 0, 1.4);
     return new float[] { start, end };
   }
 
@@ -72,7 +74,7 @@ class Donut {
       -cos(tubeAngle)
     ).normalize();
     color c = sprinklePalette[int(random(sprinklePalette.length))];
-    return new Sprinkle(pos, along, c, random(14, 24), random(3.4, 5.2));
+    return new Sprinkle(pos, along, c, random(18, 30), random(4.8, 7.2));
   }
 
   void draw() {
