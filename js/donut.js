@@ -1,12 +1,16 @@
 class Donut {
   constructor() {
     this.pts = 40;
-    this.segments = 60;
+    this.segments = 72;
     this.radius = 60;
     this.latheRadius = 100;
     this.icingLift = 4;
-    this.icingStart = -HALF_PI;
-    this.icingEnd = HALF_PI;
+    // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
+    this.icingHalfBase = 0.52;
+    this.icingEdgeWobble = 0.38;
+    this.icingNoiseScale = 1.35;
+    this.icingSeedLeft = random(1000);
+    this.icingSeedRight = random(1000);
     this.dough = color(212, 174, 55);
     this.icing = color(110, 45, 210);
     this.sprinklePalette = [
@@ -18,15 +22,37 @@ class Donut {
       color(255, 140, 60),
     ];
     this.sprinkles = [];
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 70; i++) {
       this.sprinkles.push(this.makeSprinkle());
     }
   }
 
+  // Local icing tube-angle range at a given lathe angle (radians).
+  icingBounds(latheAngle) {
+    const u = Math.cos(latheAngle) * this.icingNoiseScale;
+    const v = Math.sin(latheAngle) * this.icingNoiseScale;
+    // Soft lobes keep drips rounded rather than jagged.
+    const dripL =
+      0.55 * noise(u + this.icingSeedLeft, v) +
+      0.35 * noise(u * 2.1 + this.icingSeedLeft, v * 2.1) +
+      0.18 * Math.sin(latheAngle * 3.0 + this.icingSeedLeft);
+    const dripR =
+      0.55 * noise(u + this.icingSeedRight, v + 40) +
+      0.35 * noise(u * 2.1 + this.icingSeedRight, v * 2.1 + 40) +
+      0.18 * Math.sin(latheAngle * 2.0 - this.icingSeedRight);
+    const start =
+      -this.icingHalfBase - this.icingEdgeWobble * constrain(dripL, 0, 1.2);
+    const end =
+      this.icingHalfBase + this.icingEdgeWobble * constrain(dripR, 0, 1.2);
+    return { start, end };
+  }
+
   makeSprinkle() {
-    const tubeAngle = random(this.icingStart + 0.15, this.icingEnd - 0.15);
     const sweep = random(TWO_PI);
-    const r = this.radius + this.icingLift + 1.5;
+    const bounds = this.icingBounds(sweep);
+    const margin = 0.12;
+    const tubeAngle = random(bounds.start + margin, bounds.end - margin);
+    const r = this.radius + this.icingLift + 2.0;
     const major = this.latheRadius + Math.sin(tubeAngle) * r;
     const pos = createVector(
       Math.cos(sweep) * major,
@@ -42,19 +68,18 @@ class Donut {
       pos,
       along,
       fill: random(this.sprinklePalette),
-      len: random(6, 11),
-      thick: random(1.6, 2.4),
+      len: random(14, 24),
+      thick: random(3.4, 5.2),
       twirl: random(TWO_PI),
     };
   }
 
   draw() {
     push();
-    // p5 WEBGL already centers the origin; only pull the donut back in Z.
     translate(0, 0, -100);
-    rotateX(frameCount * PI / 150);
-    rotateY(frameCount * PI / 170);
-    rotateZ(frameCount * PI / 90);
+    rotateX((frameCount * PI) / 150);
+    rotateY((frameCount * PI) / 170);
+    rotateZ((frameCount * PI) / 90);
 
     this.drawBody();
     this.drawIcing();
@@ -116,9 +141,10 @@ class Donut {
     }
 
     for (let i = 0; i <= this.segments; i++) {
+      const bounds = this.icingBounds(latheAngle);
       for (let j = 0; j <= icingPts; j++) {
         const t = j / icingPts;
-        const tubeAngle = lerp(this.icingStart, this.icingEnd, t);
+        const tubeAngle = lerp(bounds.start, bounds.end, t);
         const r = this.radius + this.icingLift;
         const px = this.latheRadius + Math.sin(tubeAngle) * r;
         const pz = Math.cos(tubeAngle) * r;

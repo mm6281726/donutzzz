@@ -3,7 +3,7 @@ class Donut {
   float radius = 60.0;
 
   // lathe segments
-  int segments = 60;
+  int segments = 72;
   float latheRadius = 100.0;
 
   final color dough = color(212, 174, 55);
@@ -17,25 +17,49 @@ class Donut {
     color(255, 140, 60)
   };
 
-  // Icing covers the +Z half of the tube profile (the "top" of the ring).
-  final float icingStart = -HALF_PI;
-  final float icingEnd = HALF_PI;
+  // Smaller icing cap; edges wobble with smooth noise for uneven rounded drips.
+  final float icingHalfBase = 0.52;
+  final float icingEdgeWobble = 0.38;
+  final float icingNoiseScale = 1.35;
   final float icingLift = 4.0;
+  float icingSeedLeft;
+  float icingSeedRight;
 
   Sprinkle[] sprinkles;
-  final int sprinkleCount = 90;
+  final int sprinkleCount = 70;
 
   Donut() {
+    icingSeedLeft = random(1000);
+    icingSeedRight = random(1000);
     sprinkles = new Sprinkle[sprinkleCount];
     for (int i = 0; i < sprinkleCount; i++) {
       sprinkles[i] = makeSprinkle();
     }
   }
 
+  // Local icing tube-angle range at a given lathe angle (radians).
+  float[] icingBounds(float latheAngle) {
+    float u = cos(latheAngle) * icingNoiseScale;
+    float v = sin(latheAngle) * icingNoiseScale;
+    float dripL =
+      0.55 * noise(u + icingSeedLeft, v) +
+      0.35 * noise(u * 2.1 + icingSeedLeft, v * 2.1) +
+      0.18 * sin(latheAngle * 3.0 + icingSeedLeft);
+    float dripR =
+      0.55 * noise(u + icingSeedRight, v + 40) +
+      0.35 * noise(u * 2.1 + icingSeedRight, v * 2.1 + 40) +
+      0.18 * sin(latheAngle * 2.0 - icingSeedRight);
+    float start = -icingHalfBase - icingEdgeWobble * constrain(dripL, 0, 1.2);
+    float end = icingHalfBase + icingEdgeWobble * constrain(dripR, 0, 1.2);
+    return new float[] { start, end };
+  }
+
   Sprinkle makeSprinkle() {
-    float tubeAngle = random(icingStart + 0.15, icingEnd - 0.15);
     float sweep = random(TWO_PI);
-    float r = radius + icingLift + 1.5;
+    float[] bounds = icingBounds(sweep);
+    float margin = 0.12;
+    float tubeAngle = random(bounds[0] + margin, bounds[1] - margin);
+    float r = radius + icingLift + 2.0;
     float major = latheRadius + sin(tubeAngle) * r;
     PVector pos = new PVector(
       cos(sweep) * major,
@@ -48,7 +72,7 @@ class Donut {
       -cos(tubeAngle)
     ).normalize();
     color c = sprinklePalette[int(random(sprinklePalette.length))];
-    return new Sprinkle(pos, along, c, random(6, 11), random(1.6, 2.4));
+    return new Sprinkle(pos, along, c, random(14, 24), random(3.4, 5.2));
   }
 
   void draw() {
@@ -119,9 +143,10 @@ class Donut {
     }
 
     for (int i = 0; i <= segments; i++) {
+      float[] bounds = icingBounds(radians(latheAngle));
       for (int j = 0; j <= icingPts; j++) {
         float t = j / float(icingPts);
-        float tubeAngle = lerp(icingStart, icingEnd, t);
+        float tubeAngle = lerp(bounds[0], bounds[1], t);
         float r = radius + icingLift;
         float px = latheRadius + sin(tubeAngle) * r;
         float pz = cos(tubeAngle) * r;
