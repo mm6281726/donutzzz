@@ -10,38 +10,48 @@ function showWebglError(detail) {
   if (host) host.style.display = "none";
 }
 
-function setup() {
-  // Set BEFORE createCanvas(WEBGL). failIfMajorPerformanceCaveat:false is
-  // important for Chrome on VMs / remote desktops that use SwiftShader.
-  setAttributes("alpha", true);
-  setAttributes("depth", true);
-  setAttributes("antialias", true);
-  setAttributes("premultipliedAlpha", true);
-  setAttributes("preserveDrawingBuffer", true);
-  setAttributes("perPixelLighting", true);
-  setAttributes("failIfMajorPerformanceCaveat", false);
+function tryCreateWebGLCanvas() {
+  // Attempt 1: Chrome-friendly attributes (software GL allowed).
+  try {
+    setAttributes({
+      alpha: true,
+      depth: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+      failIfMajorPerformanceCaveat: false,
+    });
+    const c = createCanvas(windowWidth, windowHeight, WEBGL);
+    c.parent("canvas-host");
+    return c;
+  } catch (err) {
+    console.warn("WebGL create attempt 1 failed", err);
+  }
 
-  // Cap density so high-DPI Chrome stays smooth.
+  // Attempt 2: default attributes only.
+  try {
+    setAttributes({
+      alpha: true,
+      depth: true,
+      antialias: false,
+      failIfMajorPerformanceCaveat: false,
+    });
+    const c = createCanvas(windowWidth, windowHeight, WEBGL);
+    c.parent("canvas-host");
+    return c;
+  } catch (err) {
+    console.warn("WebGL create attempt 2 failed", err);
+  }
+
+  return null;
+}
+
+function setup() {
   const density = typeof displayDensity === "function" ? displayDensity() : 1;
   pixelDensity(Math.min(Math.max(density, 1), 2));
 
-  let canvas;
-  try {
-    canvas = createCanvas(windowWidth, windowHeight, WEBGL);
-  } catch (err) {
-    showWebglError(err);
-    noLoop();
-    return;
-  }
-
-  canvas.parent("canvas-host");
-
-  const gl =
-    (canvas._renderer && (canvas._renderer.GL || canvas._renderer.drawingContext)) ||
-    (canvas.elt && canvas.elt.getContext("webgl"));
-
-  if (!gl) {
-    showWebglError("No WebGL context after createCanvas");
+  const canvas = tryCreateWebGLCanvas();
+  if (!canvas) {
+    showWebglError("createCanvas(WEBGL) failed");
     noLoop();
     return;
   }
